@@ -1,0 +1,158 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
+  ParseUUIDPipe,
+  Patch,
+} from '@nestjs/common';
+import { ProductService } from './product.service.js';
+import { ProductDto, UpdateProductDto } from './dto/product.dto.js';
+
+@Controller('products')
+export class ProductController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Post()
+  async create(@Body() dto: ProductDto) {
+    return this.productService.create(dto);
+  }
+
+  // Публичные endpoints - только активные продукты
+  @Get()
+  async getAll(
+    @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+    @Query('minPrice') minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('sortBy') sortBy?: 'name' | 'price' | 'createdAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.productService.getAll({
+      categoryId,
+      search,
+      minPrice,
+      maxPrice,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get('category-id/:categoryId')
+  async getByCategoryId(
+    @Param('categoryId', ParseUUIDPipe) categoryId: string,
+    @Query('search') search?: string,
+    @Query('minPrice') minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('sortBy') sortBy?: 'name' | 'price' | 'createdAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.productService.getProductsByCategoryId(categoryId, {
+      search,
+      minPrice,
+      maxPrice,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get('category/:categorySlug')
+  async getByCategorySlug(
+    @Param('categorySlug') categorySlug: string,
+    @Query('search') search?: string,
+    @Query('minPrice') minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('sortBy') sortBy?: 'name' | 'price' | 'createdAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.productService.getProductsByCategorySlug(categorySlug, {
+      search,
+      minPrice,
+      maxPrice,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get(':id')
+  async getById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productService.getById(id);
+  }
+
+  @Get('slug/:slug')
+  async getBySlug(@Param('slug') slug: string) {
+    return this.productService.getBySlug(slug);
+  }
+
+  // Endpoints для админки
+  @Get('admin/all')
+  async getAllForAdmin(
+    @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+    @Query('minPrice') minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit?: number,
+    @Query('sortBy') sortBy?: 'name' | 'price' | 'createdAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Query('isActive') isActive?: boolean,
+  ) {
+    return this.productService.getAllForAdmin({
+      categoryId,
+      search,
+      minPrice,
+      maxPrice,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      isActive,
+    });
+  }
+
+  @Get('admin/:id')
+  async getByIdForAdmin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productService.getByIdForAdmin(id);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateProductDto,
+  ) {
+    return this.productService.update(id, dto);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productService.delete(id);
+  }
+
+  @Patch(':id/deactivate')
+  async deactivate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productService.deactivate(id);
+  }
+
+  @Patch(':id/activate')
+  async activate(@Param('id', ParseUUIDPipe) id: string) {
+    return this.productService.activate(id);
+  }
+}
