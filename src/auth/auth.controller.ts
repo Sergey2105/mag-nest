@@ -103,7 +103,7 @@ export class AuthController {
 
     // Перенаправление на фронтенд с токеном
     return res.redirect(
-      `${process.env.CLIENT_URL}/auth/success?accessToken=${result.accessToken}`,
+      `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
     );
   }
 
@@ -127,7 +127,7 @@ export class AuthController {
 
     // Перенаправление на фронтенд с токеном
     return res.redirect(
-      `${process.env.CLIENT_URL}/auth/success?accessToken=${result.accessToken}`,
+      `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
     );
   }
 }

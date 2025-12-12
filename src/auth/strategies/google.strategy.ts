@@ -237,6 +237,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       clientSecret,
       callbackURL: `${serverUrl}/auth/google/callback`,
       scope: ['email', 'profile'],
+      accessType: 'offline',
+      prompt: 'select_account consent',
     } as StrategyOptions);
   }
 

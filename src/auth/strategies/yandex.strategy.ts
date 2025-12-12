@@ -27,6 +27,11 @@ export class YandexStrategy extends PassportStrategy(Strategy, 'yandex') {
       callbackURL: `${serverUrl}/auth/yandex/callback`,
     });
   }
+  authorizationParams(): Record<string, string> {
+    return {
+      force_confirm: 'yes',
+    };
+  }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async validate(

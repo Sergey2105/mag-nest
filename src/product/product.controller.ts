@@ -9,7 +9,6 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
-  ParseUUIDPipe,
   Patch,
 } from '@nestjs/common';
 import { ProductService } from './product.service.js';
@@ -50,7 +49,7 @@ export class ProductController {
 
   @Get('category-id/:categoryId')
   async getByCategoryId(
-    @Param('categoryId', ParseUUIDPipe) categoryId: string,
+    @Param('categoryId') categoryId: string,
     @Query('search') search?: string,
     @Query('minPrice') minPrice?: number,
     @Query('maxPrice') maxPrice?: number,
@@ -93,7 +92,7 @@ export class ProductController {
   }
 
   @Get(':id')
-  async getById(@Param('id', ParseUUIDPipe) id: string) {
+  async getById(@Param('id') id: string) {
     return this.productService.getById(id);
   }
 
@@ -129,30 +128,27 @@ export class ProductController {
   }
 
   @Get('admin/:id')
-  async getByIdForAdmin(@Param('id', ParseUUIDPipe) id: string) {
+  async getByIdForAdmin(@Param('id') id: string) {
     return this.productService.getByIdForAdmin(id);
   }
 
   @Put(':id')
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateProductDto,
-  ) {
+  async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
     return this.productService.update(id, dto);
   }
 
   @Delete(':id')
-  async delete(@Param('id', ParseUUIDPipe) id: string) {
+  async delete(@Param('id') id: string) {
     return this.productService.delete(id);
   }
 
   @Patch(':id/deactivate')
-  async deactivate(@Param('id', ParseUUIDPipe) id: string) {
+  async deactivate(@Param('id') id: string) {
     return this.productService.deactivate(id);
   }
 
   @Patch(':id/activate')
-  async activate(@Param('id', ParseUUIDPipe) id: string) {
+  async activate(@Param('id') id: string) {
     return this.productService.activate(id);
   }
 }

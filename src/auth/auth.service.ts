@@ -197,7 +197,7 @@ export class AuthService {
       const result = await this.jwt.verifyAsync<JwtPayload>(refreshToken);
 
       const user = await this.userService.getById(result.id);
-      if (!user) throw new UnauthorizedException('Пользователь не найден');
+      if (!user) throw new UnauthorizedException('Неверный email или пароль');
 
       const tokens = this.issueTokens(user.id);
 
@@ -224,7 +224,7 @@ export class AuthService {
   private async validateUser(dto: AuthDto): Promise<User> {
     const user = await this.userService.getByEmail(dto.email);
 
-    if (!user) throw new NotFoundException('Пользователь не найден');
+    if (!user) throw new NotFoundException('Неверный email или пароль');
 
     // Если используете пароли (не OAuth)
     // if (dto.password && user.password) {
