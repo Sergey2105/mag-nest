@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -101,9 +102,18 @@ export class AuthController {
     );
     this.authService.addRefreshTokenToResponse(res, result.refreshToken);
 
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
+
+    if (isMobile) {
+      return res.redirect(
+        `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
+      );
+    }
+
     // Перенаправление на фронтенд с токеном
     return res.redirect(
-      `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
+      `${process.env.SERVER_URL}/auth/popup-success?accessToken=${result.accessToken}`,
     );
   }
 
@@ -125,9 +135,39 @@ export class AuthController {
     );
     this.authService.addRefreshTokenToResponse(res, result.refreshToken);
 
+    const userAgent = req.headers['user-agent'] || '';
+    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
+
+    if (isMobile) {
+      return res.redirect(
+        `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
+      );
+    }
+
     // Перенаправление на фронтенд с токеном
     return res.redirect(
-      `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
+      `${process.env.SERVER_URL}/auth/popup-success?accessToken=${result.accessToken}`,
     );
+  }
+
+  @Get('popup-success')
+  popupSuccess(@Query('token') token: string) {
+    return `
+    <html>
+      <body>
+        <script>
+          if (window.opener) {
+             window.opener.postMessage(
+               { type: "oauth_token", token: "${token}" },
+               "*"
+             );
+             window.close();
+          } else {
+             document.body.innerHTML = "<h3>Authentication completed. You may close this window.</h3>";
+          }
+        </script>
+      </body>
+    </html>
+  `;
   }
 }
