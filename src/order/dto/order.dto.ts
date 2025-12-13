@@ -10,7 +10,7 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OrderStatus } from '../../../generated/prisma/enums.js';
+import { OrderStatus } from '../../../generated/prisma/enums';
 
 export class OrderItemDto {
   @IsString({ message: 'ProductId должен быть строкой' })

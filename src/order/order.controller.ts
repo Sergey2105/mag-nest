@@ -6,10 +6,10 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { OrderService } from './order.service.js';
-import { OrderDto } from './dto/order.dto.js';
-import { CurrentUser } from '../user/decorator/user.decorator.js';
-import { Auth } from '../auth/decorators/auth.decorator.js';
+import { OrderService } from './order.service';
+import { OrderDto } from './dto/order.dto';
+import { Auth } from '../auth/decorators/auth.decorator';
+import { CurrentUser } from '@/auth/decorators/user.decorator';
 
 @Controller('order')
 export class OrderController {

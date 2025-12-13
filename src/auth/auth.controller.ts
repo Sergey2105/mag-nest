@@ -8,166 +8,85 @@ import {
   Req,
   Res,
   UnauthorizedException,
-  UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
-import { AuthService } from './auth.service.js';
-import { AuthDto } from './dto/auth.dto.js';
-import type { Request, Response } from 'express';
-import { AuthGuard } from '@nestjs/passport';
-import { User } from '../../generated/prisma/client.js';
+import { Recaptcha } from '@nestlab/google-recaptcha';
+import { Request, Response } from 'express';
+import { AuthService } from './auth.service';
+import { AuthDto } from './dto/auth.dto';
+import { RefreshTokenService } from './refresh-token.service';
 
-interface OAuthUser {
-  email: string;
-  name: string;
-  picture?: string;
-  googleId?: string;
-  yandexId?: string;
-}
-
-interface AuthResponse {
-  user: User;
-  accessToken: string;
-  refreshToken: string;
-}
-
-@Controller('auth')
+@Controller()
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly refreshTokenService: RefreshTokenService,
+  ) {}
 
-  @Post('login')
+  @UsePipes(new ValidationPipe())
   @HttpCode(200)
-  async login(
-    @Body() dto: AuthDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<AuthResponse> {
-    const result = await this.authService.login(dto);
-    this.authService.addRefreshTokenToResponse(res, result.refreshToken);
-    return result;
+  @Recaptcha()
+  @Post('auth/login')
+  async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
+    const { refreshToken, ...response } = await this.authService.login(dto);
+
+    this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
+
+    return response;
   }
 
-  @Post('register')
+  @UsePipes(new ValidationPipe())
   @HttpCode(200)
+  @Recaptcha()
+  @Post('auth/register')
   async register(
     @Body() dto: AuthDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<AuthResponse> {
-    const result = await this.authService.register(dto);
-    this.authService.addRefreshTokenToResponse(res, result.refreshToken);
-    return result;
+  ) {
+    const { refreshToken, ...response } = await this.authService.register(dto);
+    this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
+    return response;
   }
 
-  @Post('login/access-token')
   @HttpCode(200)
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token?: string) {
+    if (!token) {
+      throw new UnauthorizedException('Token not passed');
+    }
+
+    return this.authService.verifyEmail(token);
+  }
+
+  @HttpCode(200)
+  @Post('auth/access-token')
   async getNewTokens(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<AuthResponse> {
-    const refreshTokenFromCookies = req.cookies[
-      this.authService.REFRESH_TOKEN_NAME
-    ] as string | undefined;
+  ) {
+    const refreshTokenFromCookies =
+      req.cookies[this.refreshTokenService.REFRESH_TOKEN_NAME];
 
     if (!refreshTokenFromCookies) {
-      this.authService.removeRefreshTokenFromResponse(res);
-      throw new UnauthorizedException('Refresh token не передан');
+      this.refreshTokenService.removeRefreshTokenFromResponse(res);
+      throw new UnauthorizedException('Refresh token not passed');
     }
 
-    const result = await this.authService.getNewTokens(refreshTokenFromCookies);
-    this.authService.addRefreshTokenToResponse(res, result.refreshToken);
+    const { refreshToken, ...response } = await this.authService.getNewTokens(
+      refreshTokenFromCookies,
+    );
 
-    return result;
+    this.refreshTokenService.addRefreshTokenToResponse(res, refreshToken);
+
+    return response;
   }
 
-  @Post('logout')
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) res: Response) {
-    this.authService.removeRefreshTokenFromResponse(res);
-    return { message: 'Logout successful' };
-  }
+  @Post('auth/logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    this.refreshTokenService.removeRefreshTokenFromResponse(res);
 
-  // Google OAuth
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  async googleAuth() {
-    // Guard перенаправит на Google
-  }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.validateOAuthLogin(
-      req.user as OAuthUser,
-    );
-    this.authService.addRefreshTokenToResponse(res, result.refreshToken);
-
-    const userAgent = req.headers['user-agent'] || '';
-    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
-
-    if (isMobile) {
-      return res.redirect(
-        `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
-      );
-    }
-
-    // Перенаправление на фронтенд с токеном
-    return res.redirect(
-      `${process.env.SERVER_URL}/auth/popup-success?accessToken=${result.accessToken}`,
-    );
-  }
-
-  // Yandex OAuth
-  @Get('yandex')
-  @UseGuards(AuthGuard('yandex'))
-  async yandexAuth() {
-    // Guard перенаправит на Yandex
-  }
-
-  @Get('yandex/callback')
-  @UseGuards(AuthGuard('yandex'))
-  async yandexAuthCallback(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.validateOAuthLogin(
-      req.user as OAuthUser,
-    );
-    this.authService.addRefreshTokenToResponse(res, result.refreshToken);
-
-    const userAgent = req.headers['user-agent'] || '';
-    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
-
-    if (isMobile) {
-      return res.redirect(
-        `${process.env.CLIENT_URL}/profile?accessToken=${result.accessToken}`,
-      );
-    }
-
-    // Перенаправление на фронтенд с токеном
-    return res.redirect(
-      `${process.env.SERVER_URL}/auth/popup-success?accessToken=${result.accessToken}`,
-    );
-  }
-
-  @Get('popup-success')
-  popupSuccess(@Query('token') token: string) {
-    return `
-    <html>
-      <body>
-        <script>
-          if (window.opener) {
-             window.opener.postMessage(
-               { type: "oauth_token", token: "${token}" },
-               "*"
-             );
-             window.close();
-          } else {
-             document.body.innerHTML = "<h3>Authentication completed. You may close this window.</h3>";
-          }
-        </script>
-      </body>
-    </html>
-  `;
+    return true;
   }
 }

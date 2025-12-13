@@ -10,20 +10,29 @@ datasource db {
 
 model User {
   id               String             @id @default(cuid())
-  name         String             @default("Не указано")
-  email            String             @unique
+  email            String?             @unique
+  phone String? @unique
+
+  name       String?
   password         String?
-  role             UserRole           @default(USER)
-  verified         DateTime?
-  provider         String?
-  providerId       String?
+  avatarPath String? @map("avatar_path")
+
+  telegramId String? @map("telegram_id")
+
+  otpCode      String?   @map("otp_code")
+  otpExpiresAt DateTime? @map("otp_expires_at")
+
+  verificationToken String? @default(cuid()) @map("verification_token")
+
+  rights Role[] @default([USER])
+
+
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("update_at")
 
   cart             Cart?
   orders           Order[]
   favorites        Favorite[]
-  // verificationCode VerificationCode?
 
   @@map("user")
 }
@@ -163,7 +172,9 @@ enum OrderStatus {
   CANCELLED
 }
 
-enum UserRole {
+enum Role {
   USER
+  PREMIUM
+  MANAGER
   ADMIN
 }

@@ -11,8 +11,8 @@ import {
   DefaultValuePipe,
   Patch,
 } from '@nestjs/common';
-import { ProductService } from './product.service.js';
-import { ProductDto, UpdateProductDto } from './dto/product.dto.js';
+import { ProductService } from './product.service';
+import { ProductDto, UpdateProductDto } from './dto/product.dto';
 
 @Controller('products')
 export class ProductController {
