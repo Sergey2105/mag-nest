@@ -3,9 +3,9 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma.service.js';
-import { OrderDto } from './dto/order.dto.js';
-import { OrderStatus, Prisma } from '../../generated/prisma/client.js';
+import { PrismaService } from '../prisma.service';
+import { OrderDto } from './dto/order.dto';
+import { OrderStatus, Prisma } from '../../generated/prisma/client';
 
 @Injectable()
 export class OrderService {

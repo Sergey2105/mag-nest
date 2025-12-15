@@ -1,9 +1,19 @@
-import { Controller, Param, Get, Patch } from '@nestjs/common';
-import { UserService } from './user.service.js';
-import { CurrentUser } from './decorator/user.decorator.js';
-import { Auth } from '../auth/decorators/auth.decorator.js';
+import { Auth } from '@/auth/decorators/auth.decorator';
+import { CurrentUser } from '@/auth/decorators/user.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
+import { UserService } from './user.service';
+import { Role } from 'generated/prisma/client';
 
-@Controller('user')
+@Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -11,6 +21,35 @@ export class UserController {
   @Get('profile')
   async getProfile(@CurrentUser('id') id: string) {
     return this.userService.getById(id);
+  }
+
+  @UsePipes(new ValidationPipe())
+  @HttpCode(200)
+  @Auth()
+  @Patch('update-email')
+  async updateEmail(
+    @CurrentUser('id') userId: string,
+    @Body() dto: { email: string },
+  ) {
+    return this.userService.update(userId, { email: dto.email });
+  }
+
+  @Auth(Role.PREMIUM)
+  @Get('premium')
+  async getPremium() {
+    return { text: 'Premium content' };
+  }
+
+  @Auth([Role.ADMIN, Role.MANAGER])
+  @Get('manager')
+  async getManagerContent() {
+    return { text: 'Manager content' };
+  }
+
+  @Auth(Role.ADMIN)
+  @Get('list')
+  async getList() {
+    return this.userService.getUsers();
   }
 
   @Auth()

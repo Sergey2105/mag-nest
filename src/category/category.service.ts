@@ -5,8 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma.service.js';
-import { CategoryDto, UpdateCategoryDto } from './dto/category.dto.js';
+import { PrismaService } from '../prisma.service';
+import { CategoryDto, UpdateCategoryDto } from './dto/category.dto';
 import slugify from '@sindresorhus/slugify';
 
 @Injectable()

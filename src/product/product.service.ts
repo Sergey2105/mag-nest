@@ -4,10 +4,10 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma, OrderStatus } from '../../generated/prisma/client.js';
-import { PrismaService } from '../prisma.service.js';
+import { Prisma, OrderStatus } from '../../generated/prisma/client';
+import { PrismaService } from '../prisma.service';
 import slugify from '@sindresorhus/slugify';
-import { ProductDto, UpdateProductDto } from './dto/product.dto.js';
+import { ProductDto, UpdateProductDto } from './dto/product.dto';
 
 @Injectable()
 export class ProductService {

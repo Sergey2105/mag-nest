@@ -1,110 +1,7 @@
-// import {
-//   BadRequestException,
-//   Injectable,
-//   NotFoundException,
-// } from '@nestjs/common';
-// import { JwtService } from '@nestjs/jwt';
-// import { UserService } from '../user/user.service';
-// import { PrismaService } from '../prisma.service';
-// import { AuthDto } from './dto/auth.dto';
-// import { Response } from 'express';
-// import { ConfigService } from '@nestjs/config';
-
-// @Injectable()
-// export class AuthService {
-//   EXPIRE_DAY_REFRESH_TOKEN = 1;
-//   REFRESH_TOKEN_NAME = 'refreshToken';
-
-//   constructor(
-//     private jwt: JwtService,
-//     private userService: UserService,
-//     private prisma: PrismaService,
-//     private configService: ConfigService,
-//   ) {}
-
-//   async login(dto: AuthDto) {
-//     const user = await this.validateUser(dto);
-
-//     const tokens = this.issueTokens(user.id);
-
-//     return { user, ...tokens };
-//   }
-//   async register(dto: AuthDto) {
-//     const oldUser = await this.userService.getByEmail(dto.email);
-
-//     if (oldUser) throw new BadRequestException('Пользователь уже существует');
-
-//     const user = await this.userService.create(dto);
-//     const tokens = this.issueTokens(user.id);
-
-//     return { user, ...tokens };
-//   }
-
-//   issueTokens(userId: string) {
-//     const data = { id: userId };
-
-//     const accessToken = this.jwt.sign(data, {
-//       expiresIn: '1h',
-//     });
-
-//     const refreshToken = this.jwt.sign(data, {
-//       expiresIn: '7d',
-//     });
-//     return { accessToken, refreshToken };
-//   }
-
-//   private async validateUser(dto: AuthDto) {
-//     const user = await this.userService.getByEmail(dto.email);
-
-//     if (!user) throw new NotFoundException('Пользователь не найден');
-
-//     return user;
-//   }
-
-//   async validateOAuthLogin(req: any) {
-//     let user = await this.userService.getByEmail(req.user.email);
-
-//     if (!user) {
-//       user = await this.prisma.user.create({
-//         data: {
-//           email: req.user.email,
-//           name: req.user.name,
-//           picture: req.user.picture,
-//         },
-//         include: {
-//           favorites: true,
-//           orders: true,
-//         },
-//       });
-//     }
-//     const tokens = this.issueTokens(user.id);
-//     return { user, ...tokens };
-//   }
-
-//   addRefreshTokenToResponse(res: Response, refreshToken: string) {
-//     const expiresIn = new Date();
-//     expiresIn.setDate(expiresIn.getDate() + this.EXPIRE_DAY_REFRESH_TOKEN);
-
-//     res.cookie(this.REFRESH_TOKEN_NAME, refreshToken, {
-//       httpOnly: true,
-//       domain: this.configService.get('SERVER_DOMAIN'),
-//       expires: expiresIn,
-//       secure: true,
-//       sameSite: 'none', // lax на проде
-//     });
-//   }
-
-//   removeRefreshTokenFromResponse(res: Response) {
-//     res.cookie(this.REFRESH_TOKEN_NAME, '', {
-//       httpOnly: true,
-//       domain: this.configService.get('SERVER_DOMAIN'),
-//       expires: new Date(0),
-//       secure: true,
-//       sameSite: 'none', // lax на проде
-//     });
-//   }
-// }
-
+import { VERIFY_EMAIL_URL } from '@/constants';
+import { EmailService } from '@/email/email.service';
+import { PrismaService } from '@/prisma.service';
+import { UserService } from '@/user/user.service';
 import {
   BadRequestException,
   Injectable,
@@ -112,149 +9,97 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Response } from 'express';
-import { ConfigService } from '@nestjs/config';
-import { User } from '../../generated/prisma/client.js';
-import { AuthDto } from './dto/auth.dto.js';
-import { UserService } from '../user/user.service.js';
-import { PrismaService } from '../prisma.service.js';
-// import { verify } from 'argon2';
-
-interface Tokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
-interface AuthResponse {
-  user: User;
-  accessToken: string;
-  refreshToken: string;
-}
-
-interface OAuthUser {
-  email: string;
-  name: string;
-  picture?: string;
-  googleId?: string;
-  yandexId?: string;
-}
-
-interface JwtPayload {
-  id: string;
-}
+import { verify } from 'argon2';
+import { omit } from 'lodash';
+import { AuthDto } from './dto/auth.dto';
+import { Role, User } from 'generated/prisma/client';
 
 @Injectable()
 export class AuthService {
-  EXPIRE_DAY_REFRESH_TOKEN = 7;
-  REFRESH_TOKEN_NAME = 'refreshToken';
-
   constructor(
     private jwt: JwtService,
     private userService: UserService,
+    private emailService: EmailService,
     private prisma: PrismaService,
-    private configService: ConfigService,
   ) {}
 
-  async login(dto: AuthDto): Promise<AuthResponse> {
+  private readonly TOKEN_EXPIRATION_ACCESS = '1h';
+  private readonly TOKEN_EXPIRATION_REFRESH = '7d';
+
+  async login(dto: AuthDto) {
     const user = await this.validateUser(dto);
-    const tokens = this.issueTokens(user.id);
-
-    return { user, ...tokens };
+    return this.buildResponseObject(user);
   }
 
-  async register(dto: AuthDto): Promise<AuthResponse> {
-    const oldUser = await this.userService.getByEmail(dto.email);
-
-    if (oldUser) throw new BadRequestException('Пользователь уже существует');
-
-    const user = await this.userService.create(dto);
-    const tokens = this.issueTokens(user.id);
-
-    return { user, ...tokens };
-  }
-
-  async validateOAuthLogin(oauthUser: OAuthUser): Promise<AuthResponse> {
-    const user = await this.prisma.user.upsert({
-      where: { email: oauthUser.email },
-      create: {
-        email: oauthUser.email,
-        name: oauthUser.name,
-        // picture: oauthUser.picture,
-      },
-      update: {
-        name: oauthUser.name,
-        // picture: oauthUser.picture,
-      },
-    });
-
-    const tokens = this.issueTokens(user.id);
-
-    return { user, ...tokens };
-  }
-
-  async getNewTokens(refreshToken: string): Promise<AuthResponse> {
-    try {
-      const result = await this.jwt.verifyAsync<JwtPayload>(refreshToken);
-
-      const user = await this.userService.getById(result.id);
-      if (!user) throw new UnauthorizedException('Неверный email или пароль');
-
-      const tokens = this.issueTokens(user.id);
-
-      return { user, ...tokens };
-    } catch {
-      throw new UnauthorizedException('Невалидный refresh token');
+  async register(dto: AuthDto) {
+    const userExists = await this.userService.getByEmail(dto.email);
+    if (userExists) {
+      throw new BadRequestException('User already exists');
     }
+    const user = await this.userService.create(dto);
+
+    await this.emailService.sendVerification(
+      user.email,
+      `${VERIFY_EMAIL_URL}${user.verificationToken}`,
+    );
+
+    return this.buildResponseObject(user);
   }
 
-  private issueTokens(userId: string): Tokens {
-    const data = { id: userId };
+  async getNewTokens(refreshToken: string) {
+    const result = await this.jwt.verifyAsync(refreshToken);
+    if (!result) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+    const user = await this.userService.getById(result.id);
+    return this.buildResponseObject(user);
+  }
 
-    const accessToken = this.jwt.sign(data, {
-      expiresIn: this.configService.get('JWT_EXPIRATION') || '1h',
+  async verifyEmail(token: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        verificationToken: token,
+      },
     });
 
-    const refreshToken = this.jwt.sign(data, {
-      expiresIn: '7d',
+    if (!user) throw new NotFoundException('Token not exists!');
+
+    await this.userService.update(user.id, {
+      verificationToken: null,
     });
 
+    return 'Email verified!';
+  }
+
+  async buildResponseObject(user: User) {
+    const tokens = await this.issueTokens(user.id, user.rights || []);
+    return { user: this.omitPassword(user), ...tokens };
+  }
+
+  private async issueTokens(userId: string, rights: Role[]) {
+    const payload = { id: userId, rights };
+    const accessToken = this.jwt.sign(payload, {
+      expiresIn: this.TOKEN_EXPIRATION_ACCESS,
+    });
+    const refreshToken = this.jwt.sign(payload, {
+      expiresIn: this.TOKEN_EXPIRATION_REFRESH,
+    });
     return { accessToken, refreshToken };
   }
 
-  private async validateUser(dto: AuthDto): Promise<User> {
+  private async validateUser(dto: AuthDto) {
     const user = await this.userService.getByEmail(dto.email);
-
-    if (!user) throw new NotFoundException('Неверный email или пароль');
-
-    // Если используете пароли (не OAuth)
-    // if (dto.password && user.password) {
-    //   const isValid = await verify(user.password, dto.password);
-    //   if (!isValid) throw new UnauthorizedException('Неверный пароль');
-    // }
-
+    if (!user) {
+      throw new UnauthorizedException('Email or password invalid');
+    }
+    const isValid = await verify(user.password, dto.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Email or password invalid');
+    }
     return user;
   }
 
-  addRefreshTokenToResponse(res: Response, refreshToken: string): void {
-    const expiresIn = new Date();
-    expiresIn.setDate(expiresIn.getDate() + this.EXPIRE_DAY_REFRESH_TOKEN);
-
-    res.cookie(this.REFRESH_TOKEN_NAME, refreshToken, {
-      httpOnly: true,
-      domain: this.configService.get('SERVER_DOMAIN'),
-      expires: expiresIn,
-      secure: true,
-      sameSite: 'none',
-    });
-  }
-
-  removeRefreshTokenFromResponse(res: Response): void {
-    res.cookie(this.REFRESH_TOKEN_NAME, '', {
-      httpOnly: true,
-      domain: this.configService.get('SERVER_DOMAIN'),
-      expires: new Date(0),
-      secure: true,
-      sameSite: 'none',
-    });
+  private omitPassword(user: User) {
+    return omit(user, ['password']);
   }
 }

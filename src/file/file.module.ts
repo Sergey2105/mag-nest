@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
-import { FileService } from './file.service.js';
-import { FileController } from './file.controller.js';
+import { FileService } from './file.service';
+import { FileController } from './file.controller';
 import { join } from 'path';
 
 @Module({
