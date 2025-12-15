@@ -113,6 +113,10 @@ export class SocialMediaAuthController {
     @Query() query: ITelegramProfile,
     @Res({ passthrough: true }) res: Response,
   ) {
+    console.log('=== Telegram Auth Data ===');
+    console.log('Full query:', query);
+    console.log('Telegram ID:', query.id);
+    console.log('========================');
     // Проверяем подпись (hash), чтобы убедиться, что данные пришли от Telegram
     if (!validateTelegramAuth(query)) {
       throw new Error('Invalid Telegram authentication data');
@@ -120,7 +124,7 @@ export class SocialMediaAuthController {
 
     const user = await this.socialMediaAuthService.login({
       user: {
-        telegramId: query.telegramId,
+        telegramId: query.id,
         name: query.username || `${query.firstName} ${query.lastName}`,
         avatarPath: query.photoUrl || '',
       },

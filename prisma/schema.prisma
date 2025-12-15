@@ -17,7 +17,7 @@ model User {
   password         String?
   avatarPath String? @map("avatar_path")
 
-  telegramId String? @map("telegram_id")
+  telegramId String? @unique @map("telegram_id")
 
   otpCode      String?   @map("otp_code")
   otpExpiresAt DateTime? @map("otp_expires_at")

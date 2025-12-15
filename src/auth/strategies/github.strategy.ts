@@ -28,8 +28,9 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     profile: IGithubProfile,
     done: TSocialCallback,
   ) {
+    console.log(profile);
     done(null, {
-      avatarPath: profile.profileUrl,
+      avatarPath: profile.photos?.[0]?.value,
       email: profile.emails[0].value,
       name: profile.displayName,
     });

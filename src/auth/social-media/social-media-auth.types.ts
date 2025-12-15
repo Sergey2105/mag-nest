@@ -28,6 +28,7 @@ export interface IGithubProfile {
   emails: Array<{
     value: string;
   }>;
+  avatar_url: string;
 }
 
 export interface IAppleProfile {
@@ -68,7 +69,7 @@ export interface IYandexProfile {
   }>;
 }
 export interface ITelegramProfile {
-  telegramId: string;
+  id: string;
   username?: string;
   firstName: string;
   lastName?: string;
