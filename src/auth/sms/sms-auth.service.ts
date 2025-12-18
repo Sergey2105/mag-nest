@@ -1,4 +1,4 @@
-import { PrismaService } from '@/prisma.service';
+import { PrismaService } from '@/prisma/prisma.service';
 import { SmsService } from '@/sms/sms.service';
 
 import { BadRequestException, Injectable } from '@nestjs/common';

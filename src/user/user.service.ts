@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, User } from 'generated/prisma/client';
-import { PrismaService } from 'src/prisma.service';
+import { PrismaService } from '@/prisma/prisma.service';
 import { hash } from 'argon2';
 import { VERIFY_EMAIL_URL } from '@/constants';
 
@@ -42,6 +42,13 @@ export class UserService {
       // include: {
       //   favorites: true,
       // },
+      include: {
+        carts: {
+          where: {
+            status: 'ACTIVE',
+          },
+        },
+      },
     });
   }
 

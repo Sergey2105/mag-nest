@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { join } from 'path';
-import { RequestMethod } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 
 import cookieParser = require('cookie-parser');
 
@@ -24,6 +24,8 @@ async function bootstrap() {
     ],
   });
 
+  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+
   app.use(cookieParser());
   app.enableCors({
     origin: [
@@ -34,10 +36,10 @@ async function bootstrap() {
     exposedHeaders: 'set-cookie',
   });
 
-  // Отдаём загруженные файлы как статику по пути /uploads
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads/',
-  });
+  // // Отдаём загруженные файлы как статику по пути /uploads
+  // app.useStaticAssets(join(process.cwd(), 'uploads'), {
+  //   prefix: '/uploads/',
+  // });
 
   await app.listen(5000);
 }

@@ -1,6 +1,6 @@
 import { VERIFY_EMAIL_URL } from '@/constants';
 import { EmailService } from '@/email/email.service';
-import { PrismaService } from '@/prisma.service';
+import { PrismaService } from '@/prisma/prisma.service';
 import { UserService } from '@/user/user.service';
 import {
   BadRequestException,
@@ -13,6 +13,8 @@ import { verify } from 'argon2';
 import { omit } from 'lodash';
 import { AuthDto } from './dto/auth.dto';
 import { Role, User } from 'generated/prisma/client';
+import { CartService } from '@/cart/cart.service';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +23,7 @@ export class AuthService {
     private userService: UserService,
     private emailService: EmailService,
     private prisma: PrismaService,
+    private cartService: CartService,
   ) {}
 
   private readonly TOKEN_EXPIRATION_ACCESS = '1h';
@@ -31,7 +34,7 @@ export class AuthService {
     return this.buildResponseObject(user);
   }
 
-  async register(dto: AuthDto) {
+  async register({ cartItems, ...dto }: RegisterDto) {
     const userExists = await this.userService.getByEmail(dto.email);
     if (userExists) {
       throw new BadRequestException('User already exists');
@@ -42,6 +45,15 @@ export class AuthService {
       user.email,
       `${VERIFY_EMAIL_URL}${user.verificationToken}`,
     );
+
+    if (cartItems && cartItems.length > 0) {
+      await this.cartService.syncCart(user.id, {
+        items: cartItems.map((item) => ({
+          product: item.product,
+          quantity: item.quantity,
+        })),
+      });
+    }
 
     return this.buildResponseObject(user);
   }

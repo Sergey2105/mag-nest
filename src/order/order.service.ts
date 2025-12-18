@@ -1,80 +1,69 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
-import { OrderDto } from './dto/order.dto';
-import { OrderStatus, Prisma } from '../../generated/prisma/client';
+import { PrismaService } from '@/prisma/prisma.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-  /**
-   * Создать заказ и сформировать ссылку на оплату YooMoney Quickpay.
-   * YooMoney не требует предварительного запроса — формируем redirect URL.
-   */
-  async createPayment(dto: OrderDto, userId: string) {
-    const receiver = process.env.YOOMONEY_RECEIVER;
-    if (!receiver) {
-      throw new BadRequestException('YOOMONEY_RECEIVER не задан в env');
-    }
-
-    if (!dto.items?.length) {
-      throw new BadRequestException('Позиции заказа не заполнены');
-    }
-
-    // Проверяем, что товары существуют и активны
-    const productIds = dto.items.map((i) => i.productId);
-    const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, isActive: true },
-      select: { id: true },
+  async createOrder(userId: string, promoCode?: string) {
+    let cart = await this.prisma.cart.findFirst({
+      where: { userId, status: 'ACTIVE' },
+      include: { items: { include: { product: true } } },
     });
-    const existingIds = new Set(products.map((p) => p.id));
-    const missing = productIds.filter((id) => !existingIds.has(id));
-    if (missing.length) {
-      throw new NotFoundException(`Товары недоступны: ${missing.join(', ')}`);
+
+    if (!cart) {
+      cart = await this.prisma.cart.create({
+        data: { userId, status: 'ACTIVE' },
+        include: { items: { include: { product: true } } },
+      });
     }
 
-    const totalAmount = dto.items.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
+    if (!cart.items.length) {
+      throw new NotFoundException('Cart is empty');
+    }
 
-    const order = await this.prisma.order.create({
+    let totalPrice = cart.items.reduce((sum, item) => {
+      const price = item.asSecondItem
+        ? item.product.discountPrice
+        : item.product.price;
+      return sum + item.quantity * price;
+    }, 0);
+
+    let promoCodeData = null;
+    if (promoCode) {
+      promoCodeData = await this.prisma.promoCode.findUnique({
+        where: { code: promoCode },
+      });
+      if (promoCodeData) {
+        totalPrice -= totalPrice * (promoCodeData.discount / 100);
+      }
+    }
+
+    const newOrder = await this.prisma.order.create({
       data: {
-        userId: userId ?? null,
-        token: '',
-        totalAmount,
-        status: dto.status ?? OrderStatus.PENDING,
-        items: dto.items as unknown as Prisma.InputJsonValue,
-        fullName: dto.fullName,
-        email: dto.email,
-        phone: dto.phone,
-        address: dto.address,
+        userId,
+        cartId: cart.id,
+        status: 'pending',
+        promoCodeId: promoCodeData ? promoCodeData.id : null,
+        total: totalPrice,
       },
     });
 
-    const params = new URLSearchParams({
-      'quickpay-form': 'shop',
-      receiver,
-      sum: (totalAmount / 100).toFixed(2), // если price в копейках
-      paymentType: 'AC', // банковская карта
-      label: order.id,
-      targets: `Order ${order.id}`,
-      successURL:
-        process.env.YOOMONEY_SUCCESS_URL ??
-        'http://localhost:5000/payment/success',
-      failURL:
-        process.env.YOOMONEY_FAIL_URL ?? 'http://localhost:5000/payment/fail',
+    await this.prisma.cart.update({
+      where: { id: cart.id },
+      data: { status: 'PAID' },
     });
 
-    const paymentUrl = `https://yoomoney.ru/quickpay/confirm?${params.toString()}`;
+    return newOrder;
+  }
 
-    return {
-      order,
-      paymentUrl,
-    };
+  async getAll() {
+    const orders = await this.prisma.order.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: { cart: { include: { items: { include: { product: true } } } } },
+    });
+    return orders;
   }
 }

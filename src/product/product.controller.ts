@@ -18,12 +18,19 @@ import { ProductDto, UpdateProductDto } from './dto/product.dto';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  // ===============================
+  // CREATE
+  // ===============================
+
   @Post()
   async create(@Body() dto: ProductDto) {
     return this.productService.create(dto);
   }
 
-  // Публичные endpoints - только активные продукты
+  // ===============================
+  // PUBLIC
+  // ===============================
+
   @Get()
   async getAll(
     @Query('categoryId') categoryId?: string,
@@ -42,6 +49,30 @@ export class ProductController {
       maxPrice,
       page,
       limit,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get('by-slug/:slug')
+  async getProductsByCategorySlug(@Param('slug') slug: string) {
+    return this.productService.getProductsByCategorySlug(slug);
+  }
+
+  @Get('without-pagination')
+  async getAllWithoutPagination(
+    @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+    @Query('minPrice') minPrice?: number,
+    @Query('maxPrice') maxPrice?: number,
+    @Query('sortBy') sortBy?: 'name' | 'price' | 'createdAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.productService.getAllWithoutPagination({
+      categoryId,
+      search,
+      minPrice,
+      maxPrice,
       sortBy,
       sortOrder,
     });
@@ -91,17 +122,10 @@ export class ProductController {
     });
   }
 
-  @Get(':id')
-  async getById(@Param('id') id: string) {
-    return this.productService.getById(id);
-  }
+  // ===============================
+  // ADMIN
+  // ===============================
 
-  @Get('slug/:slug')
-  async getBySlug(@Param('slug') slug: string) {
-    return this.productService.getBySlug(slug);
-  }
-
-  // Endpoints для админки
   @Get('admin/all')
   async getAllForAdmin(
     @Query('categoryId') categoryId?: string,
@@ -130,6 +154,15 @@ export class ProductController {
   @Get('admin/:id')
   async getByIdForAdmin(@Param('id') id: string) {
     return this.productService.getByIdForAdmin(id);
+  }
+
+  // ===============================
+  // ID — СТРОГО В КОНЦЕ
+  // ===============================
+
+  @Get(':id')
+  async getById(@Param('id') id: string) {
+    return this.productService.getById(id);
   }
 
   @Put(':id')

@@ -5,9 +5,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { Prisma, OrderStatus } from '../../generated/prisma/client';
-import { PrismaService } from '../prisma.service';
 import slugify from '@sindresorhus/slugify';
 import { ProductDto, UpdateProductDto } from './dto/product.dto';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
 export class ProductService {
@@ -45,9 +45,11 @@ export class ProductService {
         name: dto.name,
         images: dto.images,
         price: dto.price,
+        discountPrice: dto.discountPrice ?? dto.price, // Устанавливаем discountPrice
         description: dto.description,
         categoryID: dto.categoryID,
-        isActive: dto.isActive ?? true, // По умолчанию активный
+        isActive: dto.isActive ?? true,
+        isHasSecondDiscount: dto.isHasSecondDiscount ?? false,
         slug,
       },
       include: {
@@ -64,8 +66,6 @@ export class ProductService {
 
   // Для публичного доступа - только активные продукты
   async getById(id: string) {
-    // findUnique не поддерживает дополнительные фильтры, поэтому проверяем
-    // активность отдельно после точечного поиска по первичному ключу
     const product = await this.prisma.product.findUnique({
       where: { id },
       include: {
@@ -114,7 +114,7 @@ export class ProductService {
     const product = await this.prisma.product.findFirst({
       where: {
         slug,
-        isActive: true, // Только активные
+        isActive: true,
       },
       include: {
         category: {
@@ -145,7 +145,7 @@ export class ProductService {
     limit?: number;
     sortBy?: 'name' | 'price' | 'createdAt';
     sortOrder?: 'asc' | 'desc';
-    includeInactive?: boolean; // Для админки
+    includeInactive?: boolean;
   }) {
     const {
       categoryId,
@@ -156,12 +156,11 @@ export class ProductService {
       limit = 20,
       sortBy = 'createdAt',
       sortOrder = 'desc',
-      includeInactive = false, // По умолчанию только активные
+      includeInactive = false,
     } = options || {};
 
     const where: Prisma.ProductWhereInput = {};
 
-    // Для публичного доступа фильтруем по isActive
     if (!includeInactive) {
       where.isActive = true;
     }
@@ -178,7 +177,7 @@ export class ProductService {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-      const priceFilter: Prisma.IntFilter = {};
+      const priceFilter: Prisma.FloatFilter = {}; // Изменено на FloatFilter
       if (minPrice !== undefined) {
         priceFilter.gte = minPrice;
       }
@@ -220,6 +219,73 @@ export class ProductService {
     };
   }
 
+  async getAllWithoutPagination(options?: {
+    categoryId?: string;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sortBy?: 'name' | 'price' | 'createdAt';
+    sortOrder?: 'asc' | 'desc';
+    includeInactive?: boolean;
+  }) {
+    const {
+      categoryId,
+      search,
+      minPrice,
+      maxPrice,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      includeInactive = false,
+    } = options || {};
+
+    const where: Prisma.ProductWhereInput = {};
+
+    if (!includeInactive) {
+      where.isActive = true;
+    }
+
+    if (categoryId) {
+      where.categoryID = categoryId;
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      const priceFilter: Prisma.FloatFilter = {};
+
+      if (minPrice !== undefined) {
+        priceFilter.gte = minPrice;
+      }
+
+      if (maxPrice !== undefined) {
+        priceFilter.lte = maxPrice;
+      }
+
+      where.price = priceFilter;
+    }
+
+    const products = await this.prisma.product.findMany({
+      where,
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return products;
+  }
+
   // Метод для админки - все продукты
   async getAllForAdmin(options?: {
     categoryId?: string;
@@ -230,7 +296,7 @@ export class ProductService {
     limit?: number;
     sortBy?: 'name' | 'price' | 'createdAt';
     sortOrder?: 'asc' | 'desc';
-    isActive?: boolean; // Фильтр по активности
+    isActive?: boolean;
   }) {
     const {
       categoryId,
@@ -262,7 +328,7 @@ export class ProductService {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-      const priceFilter: Prisma.IntFilter = {};
+      const priceFilter: Prisma.FloatFilter = {}; // Изменено на FloatFilter
       if (minPrice !== undefined) {
         priceFilter.gte = minPrice;
       }
@@ -384,25 +450,27 @@ export class ProductService {
   async delete(id: string) {
     const product = await this.getByIdForAdmin(id);
 
-    // Проверяем, есть ли продукт в активных заказах
-    const inActiveOrders = await this.prisma.orderItem.findFirst({
+    // Проверяем, есть ли продукт в корзинах с оплаченными заказами
+    const inActiveCarts = await this.prisma.cartItem.findFirst({
       where: {
         productId: id,
-        order: {
-          status: {
-            notIn: [OrderStatus.CANCELLED, OrderStatus.SUCCEEDED], // Проверяем только активные заказы
+        cart: {
+          order: {
+            status: {
+              notIn: [OrderStatus.canceled, OrderStatus.completed],
+            },
           },
         },
       },
     });
 
-    if (inActiveOrders) {
+    if (inActiveCarts) {
       // Вместо удаления деактивируем продукт
       return this.prisma.product.update({
         where: { id },
         data: {
           isActive: false,
-          name: `${product.name} [НЕТ В НАЛИЧИИ]`, // Можно добавить пометку
+          name: `${product.name} [НЕТ В НАЛИЧИИ]`,
         },
         include: {
           category: {
@@ -482,7 +550,7 @@ export class ProductService {
       limit?: number;
       sortBy?: 'name' | 'price' | 'createdAt';
       sortOrder?: 'asc' | 'desc';
-      includeInactive?: boolean; // Для админки
+      includeInactive?: boolean;
     },
   ) {
     const {
@@ -509,7 +577,6 @@ export class ProductService {
       categoryID: categoryId,
     };
 
-    // Фильтр по активности
     if (!includeInactive) {
       where.isActive = true;
     }
@@ -522,7 +589,7 @@ export class ProductService {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-      const priceFilter: Prisma.IntFilter = {};
+      const priceFilter: Prisma.FloatFilter = {}; // Изменено на FloatFilter
       if (minPrice !== undefined) {
         priceFilter.gte = minPrice;
       }
@@ -598,8 +665,10 @@ export class ProductService {
       includeInactive = false,
     } = options || {};
 
+    // --------------------------
     // Находим категорию по slug
-    const category = await this.prisma.category.findFirst({
+    // --------------------------
+    const category = await this.prisma.category.findUnique({
       where: { slug: categorySlug },
     });
 
@@ -607,11 +676,13 @@ export class ProductService {
       throw new NotFoundException('Категория не найдена');
     }
 
+    // --------------------------
+    // Формируем фильтр продуктов
+    // --------------------------
     const where: Prisma.ProductWhereInput = {
       categoryID: category.id,
     };
 
-    // Фильтр по активности
     if (!includeInactive) {
       where.isActive = true;
     }
@@ -624,18 +695,16 @@ export class ProductService {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-      const priceFilter: Prisma.IntFilter = {};
-      if (minPrice !== undefined) {
-        priceFilter.gte = minPrice;
-      }
-      if (maxPrice !== undefined) {
-        priceFilter.lte = maxPrice;
-      }
-      where.price = priceFilter;
+      where.price = {};
+      if (minPrice !== undefined) where.price.gte = minPrice;
+      if (maxPrice !== undefined) where.price.lte = maxPrice;
     }
 
     const skip = (page - 1) * limit;
 
+    // --------------------------
+    // Получаем продукты + общее количество
+    // --------------------------
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
@@ -656,6 +725,9 @@ export class ProductService {
       this.prisma.product.count({ where }),
     ]);
 
+    // --------------------------
+    // Возвращаем объект с категорией, продуктами и пагинацией
+    // --------------------------
     return {
       category: {
         id: category.id,

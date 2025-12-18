@@ -3,7 +3,7 @@ import {
   IsNotEmpty,
   MinLength,
   IsArray,
-  IsInt,
+  IsNumber,
   Min,
   IsPositive,
   IsOptional,
@@ -21,10 +21,16 @@ export class ProductDto {
   @IsNotEmpty({ message: 'Изображения обязательны' })
   images: string[];
 
-  @IsInt({ message: 'Цена должна быть целым числом' })
+  @IsNumber({}, { message: 'Цена должна быть числом' })
   @IsPositive({ message: 'Цена должна быть положительной' })
-  @Min(1, { message: 'Цена должна быть минимум 1' })
+  @Min(0.01, { message: 'Цена должна быть минимум 0.01' })
   price: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Цена со скидкой должна быть числом' })
+  @IsPositive({ message: 'Цена со скидкой должна быть положительной' })
+  @Min(0.01, { message: 'Цена со скидкой должна быть минимум 0.01' })
+  discountPrice?: number;
 
   @IsString({ message: 'Описание должно быть строкой' })
   @IsNotEmpty({ message: 'Описание обязательно' })
@@ -37,7 +43,11 @@ export class ProductDto {
 
   @IsOptional()
   @IsBoolean({ message: 'Флаг активности должен быть boolean' })
-  isActive?: boolean; // По умолчанию true в базе
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean({ message: 'Флаг второй скидки должен быть boolean' })
+  isHasSecondDiscount?: boolean;
 }
 
 export class UpdateProductDto {
@@ -52,10 +62,16 @@ export class UpdateProductDto {
   images?: string[];
 
   @IsOptional()
-  @IsInt({ message: 'Цена должна быть целым числом' })
+  @IsNumber({}, { message: 'Цена должна быть числом' })
   @IsPositive({ message: 'Цена должна быть положительной' })
-  @Min(1, { message: 'Цена должна быть минимум 1' })
+  @Min(0.01, { message: 'Цена должна быть минимум 0.01' })
   price?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Цена со скидкой должна быть числом' })
+  @IsPositive({ message: 'Цена со скидкой должна быть положительной' })
+  @Min(0.01, { message: 'Цена со скидкой должна быть минимум 0.01' })
+  discountPrice?: number;
 
   @IsOptional()
   @IsString({ message: 'Описание должно быть строкой' })
@@ -69,4 +85,8 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean({ message: 'Флаг активности должен быть boolean' })
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean({ message: 'Флаг второй скидки должен быть boolean' })
+  isHasSecondDiscount?: boolean;
 }

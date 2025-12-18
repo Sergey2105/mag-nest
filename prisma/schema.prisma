@@ -30,18 +30,30 @@ model User {
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("update_at")
 
-  cart             Cart?
-  orders           Order[]
+  transactions Transaction[]
+
+  carts Cart[] @relation("UserCarts")
+  orders Order[]
   favorites        Favorite[]
 
   @@map("user")
 }
 
+enum Role {
+  USER
+  PREMIUM
+  MANAGER
+  ADMIN
+}
+
+
 model Favorite {
   id          String   @id @default(cuid())
   userId      String
   productId   String
-  createdAt   DateTime @default(now())
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("update_at")
+
 
   user        User     @relation(fields: [userId], references: [id])
   product     Product  @relation(fields: [productId], references: [id])
@@ -67,18 +79,25 @@ model Category {
 model Product {
   id          String      @id @default(cuid())
   name        String
-  slug        String      @unique
+  slug        String     
+
   images      String[]
-  price       Int
+
+  price       Float
+  discountPrice Float @map("discount_price")
+
   description String
   categoryID  String
   isActive    Boolean     @default(true)
+
+  isHasSecondDiscount Boolean @default(false) @map("is_has_second_discount")
+
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt @map("update_at")
 
   category    Category    @relation(fields: [categoryID], references: [id])
+
   cartItems   CartItem[]
-  orderItems  OrderItem[]
   favorites   Favorite[]
 
   @@map("product")
@@ -88,71 +107,182 @@ model Product {
   @@index([isActive]) 
 }
 
+
+
 model Cart {
-  id          String     @id @default(cuid())
-  userID      String?    @unique
-  token       String
-  totalAmount Int        @default(0)
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("update_at")
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  user        User?      @relation(fields: [userID], references: [id])
-  cartItems   CartItem[]
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, name: "UserCarts")
 
-  @@map("cart")
+  order Order?
+
+  status CartStatus @default(ACTIVE)
+
+  items CartItem[]
 }
 
 model CartItem {
-  id        String    @id @default(cuid())
-  productID String
-  cartID    String
-  quantity  Int
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("update_at")
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  cart      Cart      @relation(fields: [cartID], references: [id])
-  product   Product   @relation(fields: [productID], references: [id])
+  cartId String @map("cart_id")
+  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
 
-  @@map("cart_item")
+  productId String  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  asSecondItem Boolean @default(false) @map("as_second_item")
+
+  quantity Int
+}
+
+enum CartStatus {
+  ACTIVE
+  PAID
 }
 
 model Order {
-  id          String       @id @default(cuid())
-  userId      String?      @map("user_id")
-  token       String
-  totalAmount Int
-  status      OrderStatus
-  paymentId   String?
-  items       Json
-  fullName    String
-  email       String
-  phone       String
-  address     String
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("update_at")
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  user        User?        @relation(fields: [userId], references: [id])
-  orderItems  OrderItem[]
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("order")
+  cart   Cart   @relation(fields: [cartId], references: [id])
+  cartId String @unique @map("cart_id")
+
+  status OrderStatus
+
+  promoCodeId String?    @map("promo_code_id")
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+
+  total Float
+
+  transactionId Int?         @unique @map("transaction_id")
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
 
-model OrderItem {
-  id          String     @id @default(cuid())
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("update_at")
-
-  quantity    Int
-  price       Int
-
-  orderId     String?
-  order       Order?      @relation(fields: [orderId], references: [id])
-
-  productId   String?
-  product     Product?    @relation(fields: [productId], references: [id])
-
-  @@map("order_item")
+enum OrderStatus {
+  pending
+  processing
+  completed
+  canceled
 }
+
+
+model PromoCode {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  code     String @unique
+  discount Float
+
+  orders Order[]
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  paymentId     String  @unique @map("payment_id")
+  paymentMethod String? @map("payment_method")
+
+  amount String
+
+  status TransactionStatus
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  order Order?
+
+  @@map("transaction")
+}
+
+enum TransactionStatus {
+  pending
+  waiting_for_capture
+  succeeded
+  canceled
+  refunded
+}
+
+
+
+
+
+// model Cart {
+//   id          String     @id @default(cuid())
+//   userID      String?    @unique
+//   token       String
+//   totalAmount Int        @default(0)
+//   createdAt   DateTime   @default(now()) @map("created_at")
+//   updatedAt   DateTime   @updatedAt @map("update_at")
+
+//   user        User?      @relation(fields: [userID], references: [id])
+//   cartItems   CartItem[]
+
+//   @@map("cart")
+// }
+
+// model CartItem {
+//   id        String    @id @default(cuid())
+//   productID String
+//   cartID    String
+//   quantity  Int
+//   createdAt DateTime  @default(now()) @map("created_at")
+//   updatedAt DateTime  @updatedAt @map("update_at")
+
+//   cart      Cart      @relation(fields: [cartID], references: [id])
+//   product   Product   @relation(fields: [productID], references: [id])
+
+//   @@map("cart_item")
+// }
+
+// model Order {
+//   id          String       @id @default(cuid())
+//   userId      String?      @map("user_id")
+//   token       String
+//   totalAmount Int
+//   status      OrderStatus
+//   paymentId   String?
+//   items       Json
+//   fullName    String
+//   email       String
+//   phone       String
+//   address     String
+//   createdAt   DateTime     @default(now()) @map("created_at")
+//   updatedAt   DateTime     @updatedAt @map("update_at")
+
+//   user        User?        @relation(fields: [userId], references: [id])
+//   orderItems  OrderItem[]
+
+//   @@map("order")
+// }
+
+// model OrderItem {
+//   id          String     @id @default(cuid())
+//   createdAt   DateTime   @default(now()) @map("created_at")
+//   updatedAt   DateTime   @updatedAt @map("update_at")
+
+//   quantity    Int
+//   price       Int
+
+//   orderId     String?
+//   order       Order?      @relation(fields: [orderId], references: [id])
+
+//   productId   String?
+//   product     Product?    @relation(fields: [productId], references: [id])
+
+//   @@map("order_item")
+// }
 
 // model VerificationCode {
 //   id        String    @id @default(cuid())
@@ -166,15 +296,9 @@ model OrderItem {
 //   @@map("verification_code")
 // }
 
-enum OrderStatus {
-  PENDING
-  SUCCEEDED
-  CANCELLED
-}
+// enum OrderStatus {
+//   PENDING
+//   SUCCEEDED
+//   CANCELLED
+// }
 
-enum Role {
-  USER
-  PREMIUM
-  MANAGER
-  ADMIN
-}

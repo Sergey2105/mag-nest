@@ -1,25 +1,20 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  Post,
-  UsePipes,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Auth } from '@/auth/decorators/auth.decorator';
+import { Controller, Get } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { OrderDto } from './dto/order.dto';
-import { Auth } from '../auth/decorators/auth.decorator';
-import { CurrentUser } from '@/auth/decorators/user.decorator';
 
-@Controller('order')
+@Controller('orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @UsePipes(new ValidationPipe())
-  @HttpCode(200)
-  @Post('create')
+  // @Post('create')
+  // @Auth()
+  // async createOrder(@Body() dto: CreateOrderDto, @CurrentUser() user: TUser) {
+  // 	return this.orderService.createOrder(user.cart.id, user.id, dto.promoCode)
+  // }
+
+  @Get()
   @Auth()
-  checkout(@Body() dto: OrderDto, @CurrentUser('id') userId: string) {
-    return this.orderService.createPayment(dto, userId);
+  async getAll() {
+    return this.orderService.getAll();
   }
 }
