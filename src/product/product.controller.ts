@@ -54,9 +54,29 @@ export class ProductController {
     });
   }
 
+  //ИСПОЛЬЗУЮ
   @Get('by-slug/:slug')
-  async getProductsByCategorySlug(@Param('slug') slug: string) {
-    return this.productService.getProductsByCategorySlug(slug);
+  async getProductsByCategorySlug(
+    @Param('slug') slug: string,
+    @Query('search') search?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('sortBy') sortBy?: 'name' | 'price' | 'createdAt',
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    const options = {
+      search,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+      sortBy: sortBy || 'createdAt',
+      sortOrder: sortOrder || 'desc',
+    };
+
+    return this.productService.getProductsByCategorySlug(slug, options);
   }
 
   @Get('without-pagination')

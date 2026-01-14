@@ -49,7 +49,7 @@ export class ProductService {
         description: dto.description,
         categoryID: dto.categoryID,
         isActive: dto.isActive ?? true,
-        isHasSecondDiscount: dto.isHasSecondDiscount ?? false,
+        // isHasSecondDiscount: dto.isHasSecondDiscount ?? false,
         slug,
       },
       include: {
@@ -589,7 +589,7 @@ export class ProductService {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-      const priceFilter: Prisma.FloatFilter = {}; // Изменено на FloatFilter
+      const priceFilter: Prisma.FloatFilter = {};
       if (minPrice !== undefined) {
         priceFilter.gte = minPrice;
       }
@@ -638,6 +638,7 @@ export class ProductService {
     };
   }
 
+  //ИСПОЛЬЗУЮ
   /**
    * Получить продукты по slug категории (только активные)
    */
@@ -702,6 +703,11 @@ export class ProductService {
 
     const skip = (page - 1) * limit;
 
+    const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+      { [sortBy]: sortOrder },
+      { id: 'asc' },
+    ];
+
     // --------------------------
     // Получаем продукты + общее количество
     // --------------------------
@@ -710,7 +716,7 @@ export class ProductService {
         where,
         skip,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy,
         include: {
           category: {
             select: {

@@ -57,6 +57,54 @@ export class CartService {
     });
   }
 
+  async incrementItem(userId: string, cartItemId: string) {
+    const cartItem = await this.prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+      include: { cart: true },
+    });
+
+    if (!cartItem || cartItem.cart.userId !== userId) {
+      throw new Error('Cart item not found or does not belong to user');
+    }
+
+    await this.prisma.cartItem.update({
+      where: { id: cartItemId },
+      data: {
+        quantity: cartItem.quantity + 1,
+      },
+    });
+
+    return this.getCart(userId);
+  }
+
+  async decrementItem(userId: string, cartItemId: string) {
+    const cartItem = await this.prisma.cartItem.findUnique({
+      where: { id: cartItemId },
+      include: { cart: true },
+    });
+
+    if (!cartItem || cartItem.cart.userId !== userId) {
+      throw new Error('Cart item not found or does not belong to user');
+    }
+
+    if (cartItem.quantity === 1) {
+      await this.prisma.cartItem.delete({
+        where: { id: cartItemId },
+      });
+
+      return this.getCart(userId);
+    }
+
+    await this.prisma.cartItem.update({
+      where: { id: cartItemId },
+      data: {
+        quantity: cartItem.quantity - 1,
+      },
+    });
+
+    return this.getCart(userId);
+  }
+
   async removeFromCart(userId: string, removeFromCartDto: RemoveFromCartDto) {
     const { cartItemId } = removeFromCartDto;
 

@@ -21,6 +21,10 @@ export class AddToCartDto {
   readonly asSecondItem?: boolean;
 }
 
+export class UpdateCartItemDto {
+  cartItemId: string;
+}
+
 export class RemoveFromCartDto {
   @IsString()
   @IsNotEmpty()

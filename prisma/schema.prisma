@@ -90,7 +90,7 @@ model Product {
   categoryID  String
   isActive    Boolean     @default(true)
 
-  isHasSecondDiscount Boolean @default(false) @map("is_has_second_discount")
+  // isHasSecondDiscount Boolean @default(false) @map("is_has_second_discount")
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt @map("update_at")

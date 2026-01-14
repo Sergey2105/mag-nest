@@ -1,7 +1,12 @@
 import { Auth } from '@/auth/decorators/auth.decorator';
 import { CurrentUser } from '@/auth/decorators/user.decorator';
-import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
-import { AddToCartDto, RemoveFromCartDto } from './cart.dto';
+import { Body, Controller, Delete, Get, Post, Patch } from '@nestjs/common';
+import {
+  AddToCartDto,
+  RemoveFromCartDto,
+  SyncCartDto,
+  UpdateCartItemDto,
+} from './cart.dto';
 import { CartService } from './cart.service';
 
 @Controller('cart')
@@ -23,6 +28,24 @@ export class CartController {
     return await this.cartService.getCart(userId);
   }
 
+  @Patch('increment')
+  @Auth()
+  async incrementItem(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateCartItemDto,
+  ) {
+    return await this.cartService.incrementItem(userId, dto.cartItemId);
+  }
+
+  @Patch('decrement')
+  @Auth()
+  async decrementItem(
+    @CurrentUser('id') userId: string,
+    @Body() dto: UpdateCartItemDto,
+  ) {
+    return await this.cartService.decrementItem(userId, dto.cartItemId);
+  }
+
   @Delete()
   @Auth()
   async removeFromCart(
@@ -30,5 +53,11 @@ export class CartController {
     @Body() removeFromCartDto: RemoveFromCartDto,
   ) {
     return await this.cartService.removeFromCart(userId, removeFromCartDto);
+  }
+
+  @Post('sync')
+  @Auth()
+  async syncCart(@CurrentUser('id') userId: string, @Body() dto: SyncCartDto) {
+    return this.cartService.syncCart(userId, dto);
   }
 }
