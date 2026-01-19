@@ -17,6 +17,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CartModule } from './cart/cart.module';
 import { PromoModule } from './promo/promo.module';
 import { TransactionModule } from './transaction/transaction.module';
+import { FavoritesModule } from './favorite/favorite.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TransactionModule } from './transaction/transaction.module';
     CategoryModule,
     OrderModule,
     CartModule,
+    FavoritesModule,
     PromoModule,
     TransactionModule,
     ProductModule,

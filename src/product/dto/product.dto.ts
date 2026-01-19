@@ -48,6 +48,10 @@ export class ProductDto {
   // @IsOptional()
   // @IsBoolean({ message: 'Флаг второй скидки должен быть boolean' })
   // isHasSecondDiscount?: boolean;
+
+  @IsNumber({}, { message: 'Количество на складе должно быть числом' })
+  @Min(0, { message: 'Количество на складе не может быть меньше 0' })
+  stock: number;
 }
 
 export class UpdateProductDto {
@@ -89,4 +93,9 @@ export class UpdateProductDto {
   // @IsOptional()
   // @IsBoolean({ message: 'Флаг второй скидки должен быть boolean' })
   // isHasSecondDiscount?: boolean;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Количество на складе должно быть числом' })
+  @Min(0, { message: 'Количество на складе не может быть меньше 0' })
+  stock?: number;
 }

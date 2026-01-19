@@ -6,6 +6,7 @@ import {
   RemoveFromCartDto,
   SyncCartDto,
   UpdateCartItemDto,
+  ValidateCartDto,
 } from './cart.dto';
 import { CartService } from './cart.service';
 
@@ -59,5 +60,15 @@ export class CartController {
   @Auth()
   async syncCart(@CurrentUser('id') userId: string, @Body() dto: SyncCartDto) {
     return this.cartService.syncCart(userId, dto);
+  }
+  @Post('validate')
+  @Auth()
+  async validateCart(@CurrentUser('id') userId: string) {
+    return this.cartService.validateCart(userId);
+  }
+
+  @Post('validate-guest')
+  validateGuestCart(@Body() dto: ValidateCartDto) {
+    return this.cartService.validateGuestCart(dto);
   }
 }

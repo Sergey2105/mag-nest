@@ -5,6 +5,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsArray,
+  Min,
 } from 'class-validator';
 
 export class AddToCartDto {
@@ -39,4 +41,20 @@ export interface SyncCartDto {
     quantity: number;
     asSecondItem?: boolean;
   }[];
+}
+
+export class ValidateCartItemDto {
+  @IsInt()
+  @Type(() => Number)
+  productId: number;
+
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  quantity: number;
+}
+
+export class ValidateCartDto {
+  @IsArray()
+  items: ValidateCartItemDto[];
 }

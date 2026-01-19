@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { AddToCartDto, RemoveFromCartDto, SyncCartDto } from './cart.dto';
+import {
+  AddToCartDto,
+  RemoveFromCartDto,
+  SyncCartDto,
+  ValidateCartDto,
+} from './cart.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -174,5 +179,129 @@ export class CartService {
     }
 
     return this.getCart(userId);
+  }
+
+  async validateCart(userId: string) {
+    const cart = await this.prisma.cart.findFirst({
+      where: { userId, status: 'ACTIVE' }, // фильтр по ACTIVE корзине
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                isActive: true,
+                stock: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      return {
+        cartId: null,
+        valid: true,
+        items: [],
+      };
+    }
+
+    const items = cart.items.map((item) => {
+      const product = item.product;
+
+      if (!product) {
+        return {
+          cartItemId: item.id,
+          productId: item.productId,
+          exists: false,
+          isActive: false,
+          stock: 0,
+          requestedQuantity: item.quantity,
+          allowedQuantity: 0,
+        };
+      }
+
+      const stock = product.stock ?? 0;
+      const isActive = product.isActive && stock > 0;
+
+      return {
+        cartItemId: item.id,
+        productId: item.productId,
+        productName: product.name,
+        exists: true,
+        isActive,
+        stock,
+        requestedQuantity: item.quantity,
+        allowedQuantity: isActive ? Math.min(item.quantity, stock) : 0,
+      };
+    });
+
+    const valid = items.every(
+      (i) =>
+        i.exists && i.isActive && i.allowedQuantity === i.requestedQuantity,
+    );
+
+    return {
+      cartId: cart.id,
+      valid,
+      items,
+    };
+  }
+
+  async validateGuestCart(dto: ValidateCartDto) {
+    const productIds = dto.items.map((i) => String(i.productId));
+
+    const products = await this.prisma.product.findMany({
+      where: {
+        id: { in: productIds },
+      },
+      select: {
+        id: true,
+        isActive: true,
+        stock: true,
+      },
+    });
+
+    const productMap = new Map(products.map((p) => [Number(p.id), p]));
+
+    const items = dto.items.map((item) => {
+      const product = productMap.get(item.productId);
+
+      // ❌ товар удалён
+      if (!product) {
+        return {
+          productId: item.productId,
+          exists: false,
+          isActive: false,
+          stock: 0,
+          requestedQuantity: item.quantity,
+          allowedQuantity: 0,
+        };
+      }
+
+      const stock = product.stock ?? 0;
+      const isActive = product.isActive && stock > 0;
+
+      return {
+        productId: item.productId,
+        exists: true,
+        isActive,
+        stock,
+        requestedQuantity: item.quantity,
+        allowedQuantity: isActive ? Math.min(item.quantity, stock) : 0,
+      };
+    });
+
+    const valid = items.every(
+      (i) =>
+        i.exists && i.isActive && i.allowedQuantity === i.requestedQuantity,
+    );
+
+    return {
+      valid,
+      items,
+    };
   }
 }

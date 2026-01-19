@@ -88,7 +88,9 @@ model Product {
 
   description String
   categoryID  String
+
   isActive    Boolean     @default(true)
+  stock Float @default(0)
 
   // isHasSecondDiscount Boolean @default(false) @map("is_has_second_discount")
 
@@ -213,92 +215,3 @@ enum TransactionStatus {
   canceled
   refunded
 }
-
-
-
-
-
-// model Cart {
-//   id          String     @id @default(cuid())
-//   userID      String?    @unique
-//   token       String
-//   totalAmount Int        @default(0)
-//   createdAt   DateTime   @default(now()) @map("created_at")
-//   updatedAt   DateTime   @updatedAt @map("update_at")
-
-//   user        User?      @relation(fields: [userID], references: [id])
-//   cartItems   CartItem[]
-
-//   @@map("cart")
-// }
-
-// model CartItem {
-//   id        String    @id @default(cuid())
-//   productID String
-//   cartID    String
-//   quantity  Int
-//   createdAt DateTime  @default(now()) @map("created_at")
-//   updatedAt DateTime  @updatedAt @map("update_at")
-
-//   cart      Cart      @relation(fields: [cartID], references: [id])
-//   product   Product   @relation(fields: [productID], references: [id])
-
-//   @@map("cart_item")
-// }
-
-// model Order {
-//   id          String       @id @default(cuid())
-//   userId      String?      @map("user_id")
-//   token       String
-//   totalAmount Int
-//   status      OrderStatus
-//   paymentId   String?
-//   items       Json
-//   fullName    String
-//   email       String
-//   phone       String
-//   address     String
-//   createdAt   DateTime     @default(now()) @map("created_at")
-//   updatedAt   DateTime     @updatedAt @map("update_at")
-
-//   user        User?        @relation(fields: [userId], references: [id])
-//   orderItems  OrderItem[]
-
-//   @@map("order")
-// }
-
-// model OrderItem {
-//   id          String     @id @default(cuid())
-//   createdAt   DateTime   @default(now()) @map("created_at")
-//   updatedAt   DateTime   @updatedAt @map("update_at")
-
-//   quantity    Int
-//   price       Int
-
-//   orderId     String?
-//   order       Order?      @relation(fields: [orderId], references: [id])
-
-//   productId   String?
-//   product     Product?    @relation(fields: [productId], references: [id])
-
-//   @@map("order_item")
-// }
-
-// model VerificationCode {
-//   id        String    @id @default(cuid())
-//   userId    String    @unique
-//   code      String
-//   createdAt DateTime  @default(now())
-
-//   user      User      @relation(fields: [userId], references: [id])
-
-//   @@unique([userId, code])
-//   @@map("verification_code")
-// }
-
-// enum OrderStatus {
-//   PENDING
-//   SUCCEEDED
-//   CANCELLED
-// }
-
