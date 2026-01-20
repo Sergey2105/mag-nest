@@ -65,29 +65,29 @@ export class ProductService {
   // }
 
   // Для публичного доступа - только активные продукты
-  // async getById(id: string) {
-  //   const product = await this.prisma.product.findUnique({
-  //     where: { id },
-  //     include: {
-  //       category: {
-  //         select: {
-  //           id: true,
-  //           name: true,
-  //           slug: true,
-  //           images: true,
-  //         },
-  //       },
-  //     },
-  //   });
+  async getById(id: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            images: true,
+          },
+        },
+      },
+    });
 
-  //   if (!product || !product.isActive) {
-  //     throw new NotFoundException('Продукт не найден или недоступен');
-  //   }
+    if (!product || !product.isActive) {
+      throw new NotFoundException('Продукт не найден или недоступен');
+    }
 
-  //   return product;
-  // }
+    return product;
+  }
 
-  // Для админки - продукт в любом статусе
+  // // Для админки - продукт в любом статусе
   // async getByIdForAdmin(id: string) {
   //   const product = await this.prisma.product.findUnique({
   //     where: { id },
@@ -135,7 +135,7 @@ export class ProductService {
   //   return product;
   // }
 
-  // Публичный метод - только активные продукты
+  // // Публичный метод - только активные продукты
   // async getAll(options?: {
   //   categoryId?: string;
   //   search?: string;
@@ -297,7 +297,7 @@ export class ProductService {
     return productsWithStock;
   }
 
-  // Метод для админки - все продукты
+  // // Метод для админки - все продукты
   // async getAllForAdmin(options?: {
   //   categoryId?: string;
   //   search?: string;
@@ -501,7 +501,7 @@ export class ProductService {
   //   });
   // }
 
-  // Деактивация продукта (мягкое удаление)
+  // // Деактивация продукта (мягкое удаление)
   // async deactivate(id: string) {
   //   const product = await this.getByIdForAdmin(id);
 
@@ -523,7 +523,7 @@ export class ProductService {
   //   });
   // }
 
-  // Активация продукта
+  // // Активация продукта
   // async activate(id: string) {
   //   const product = await this.getByIdForAdmin(id);
 
@@ -548,9 +548,9 @@ export class ProductService {
   //   });
   // }
 
-  /**
-   * Получить продукты по ID категории (только активные)
-   */
+  // /**
+  //  * Получить продукты по ID категории (только активные)
+  //  */
   // async getProductsByCategoryId(
   //   categoryId: string,
   //   options?: {

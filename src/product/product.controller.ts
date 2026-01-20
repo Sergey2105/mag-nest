@@ -18,18 +18,10 @@ import { ProductDto, UpdateProductDto } from './dto/product.dto';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  // ===============================
-  // CREATE
-  // ===============================
-
-  @Post()
+  // @Post()
   // async create(@Body() dto: ProductDto) {
   //   return this.productService.create(dto);
   // }
-
-  // ===============================
-  // PUBLIC
-  // ===============================
 
   // @Get()
   // async getAll(
@@ -183,10 +175,10 @@ export class ProductController {
   // ID — СТРОГО В КОНЦЕ
   // ===============================
 
-  // @Get(':id')
-  // async getById(@Param('id') id: string) {
-  //   return this.productService.getById(id);
-  // }
+  @Get(':id')
+  async getById(@Param('id') id: string) {
+    return this.productService.getById(id);
+  }
 
   // @Put(':id')
   // async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {

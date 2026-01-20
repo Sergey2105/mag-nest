@@ -45,9 +45,6 @@ export class ProductDto {
   @IsBoolean({ message: 'Флаг активности должен быть boolean' })
   isActive?: boolean;
 
-  // @IsOptional()
-  // @IsBoolean({ message: 'Флаг второй скидки должен быть boolean' })
-  // isHasSecondDiscount?: boolean;
 
   @IsNumber({}, { message: 'Количество на складе должно быть числом' })
   @Min(0, { message: 'Количество на складе не может быть меньше 0' })
@@ -89,10 +86,6 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean({ message: 'Флаг активности должен быть boolean' })
   isActive?: boolean;
-
-  // @IsOptional()
-  // @IsBoolean({ message: 'Флаг второй скидки должен быть boolean' })
-  // isHasSecondDiscount?: boolean;
 
   @IsOptional()
   @IsNumber({}, { message: 'Количество на складе должно быть числом' })

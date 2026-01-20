@@ -23,9 +23,7 @@ export class OrderService {
     }
 
     let totalPrice = cart.items.reduce((sum, item) => {
-      const price = item.asSecondItem
-        ? item.product.discountPrice
-        : item.product.price;
+      const price = item.product.price;
       return sum + item.quantity * price;
     }, 0);
 

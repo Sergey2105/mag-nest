@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  AddToCartDto,
-  RemoveFromCartDto,
-  SyncCartDto,
-  ValidateCartDto,
-} from './cart.dto';
+import { AddToCartDto, RemoveFromCartDto, SyncCartDto } from './cart.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -12,7 +7,7 @@ export class CartService {
   constructor(private prisma: PrismaService) {}
 
   async addToCart(userId: string, addToCartDto: AddToCartDto) {
-    const { productId, quantity, asSecondItem } = addToCartDto;
+    const { productId, quantity } = addToCartDto;
 
     let cart = await this.prisma.cart.findFirst({
       where: { userId, status: 'ACTIVE' },
@@ -36,7 +31,6 @@ export class CartService {
         where: { id: existingCartItem.id },
         data: {
           quantity: existingCartItem.quantity + quantity,
-          asSecondItem,
         },
       });
     } else {
@@ -45,7 +39,6 @@ export class CartService {
           cartId: cart.id,
           productId,
           quantity,
-          asSecondItem,
         },
       });
     }
@@ -163,7 +156,6 @@ export class CartService {
           where: { id: existingCartItem.id },
           data: {
             quantity: existingCartItem.quantity + item.quantity,
-            asSecondItem: item.asSecondItem,
           },
         });
       } else {
@@ -172,7 +164,6 @@ export class CartService {
             cartId: cart.id,
             productId: item.product.id,
             quantity: item.quantity,
-            asSecondItem: item.asSecondItem,
           },
         });
       }
@@ -181,127 +172,53 @@ export class CartService {
     return this.getCart(userId);
   }
 
-  async validateCart(userId: string) {
-    const cart = await this.prisma.cart.findFirst({
-      where: { userId, status: 'ACTIVE' }, // фильтр по ACTIVE корзине
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                isActive: true,
-                stock: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!cart) {
-      return {
-        cartId: null,
-        valid: true,
-        items: [],
-      };
-    }
-
-    const items = cart.items.map((item) => {
-      const product = item.product;
-
-      if (!product) {
-        return {
-          cartItemId: item.id,
-          productId: item.productId,
-          exists: false,
-          isActive: false,
-          stock: 0,
-          requestedQuantity: item.quantity,
-          allowedQuantity: 0,
-        };
-      }
-
-      const stock = product.stock ?? 0;
-      const isActive = product.isActive && stock > 0;
-
-      return {
-        cartItemId: item.id,
-        productId: item.productId,
-        productName: product.name,
-        exists: true,
-        isActive,
-        stock,
-        requestedQuantity: item.quantity,
-        allowedQuantity: isActive ? Math.min(item.quantity, stock) : 0,
-      };
-    });
-
-    const valid = items.every(
-      (i) =>
-        i.exists && i.isActive && i.allowedQuantity === i.requestedQuantity,
-    );
-
-    return {
-      cartId: cart.id,
-      valid,
-      items,
-    };
-  }
-
-  async validateGuestCart(dto: ValidateCartDto) {
-    const productIds = dto.items.map((i) => String(i.productId));
+  async normalizeGuestCart(dto: {
+    items: { productId: string; quantity: number }[];
+  }) {
+    const productIds = dto.items.map((i) => i.productId);
 
     const products = await this.prisma.product.findMany({
-      where: {
-        id: { in: productIds },
-      },
+      where: { id: { in: productIds } },
       select: {
         id: true,
+        name: true,
+        price: true,
+        discountPrice: true,
+        images: true,
         isActive: true,
         stock: true,
       },
     });
 
-    const productMap = new Map(products.map((p) => [Number(p.id), p]));
+    const productMap = new Map(products.map((p) => [p.id, p]));
 
     const items = dto.items.map((item) => {
       const product = productMap.get(item.productId);
 
-      // ❌ товар удалён
-      if (!product) {
-        return {
-          productId: item.productId,
-          exists: false,
-          isActive: false,
-          stock: 0,
-          requestedQuantity: item.quantity,
-          allowedQuantity: 0,
-        };
-      }
-
-      const stock = product.stock ?? 0;
-      const isActive = product.isActive && stock > 0;
+      // if (!product) {
+      //   return {
+      //     productId: item.productId,
+      //     // exists: false,
+      //     quantity: item.quantity,
+      //   };
+      // }
 
       return {
-        productId: item.productId,
-        exists: true,
-        isActive,
-        stock,
-        requestedQuantity: item.quantity,
-        allowedQuantity: isActive ? Math.min(item.quantity, stock) : 0,
+        // productId: product.id,
+        // exists: true,
+        quantity: item.quantity,
+        product: {
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          discountPrice: product.discountPrice,
+          images: product.images,
+          stock: product.stock ?? 0,
+          isActive: product.isActive,
+        },
       };
     });
 
-    const valid = items.every(
-      (i) =>
-        i.exists && i.isActive && i.allowedQuantity === i.requestedQuantity,
-    );
-
-    return {
-      valid,
-      items,
-    };
+    return { items };
   }
 }

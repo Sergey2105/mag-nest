@@ -137,7 +137,7 @@ model CartItem {
   productId String  @map("product_id")
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  asSecondItem Boolean @default(false) @map("as_second_item")
+  // asSecondItem Boolean @default(false) @map("as_second_item")
 
   quantity Int
 }

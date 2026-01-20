@@ -17,10 +17,6 @@ export class AddToCartDto {
   @IsInt()
   @Type(() => Number)
   readonly quantity: number;
-
-  @IsBoolean()
-  @IsOptional()
-  readonly asSecondItem?: boolean;
 }
 
 export class UpdateCartItemDto {
@@ -39,11 +35,9 @@ export interface SyncCartDto {
       id: string;
     };
     quantity: number;
-    asSecondItem?: boolean;
   }[];
 }
-
-export class ValidateCartItemDto {
+export class NormalizeGuestCartItemDto {
   @IsInt()
   @Type(() => Number)
   productId: number;
@@ -54,7 +48,7 @@ export class ValidateCartItemDto {
   quantity: number;
 }
 
-export class ValidateCartDto {
+export class NormalizeGuestCartDto {
   @IsArray()
-  items: ValidateCartItemDto[];
+  items: NormalizeGuestCartItemDto[];
 }
