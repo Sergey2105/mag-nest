@@ -45,10 +45,10 @@ export class ProductDto {
   @IsBoolean({ message: 'Флаг активности должен быть boolean' })
   isActive?: boolean;
 
-
+  @IsOptional()
   @IsNumber({}, { message: 'Количество на складе должно быть числом' })
   @Min(0, { message: 'Количество на складе не может быть меньше 0' })
-  stock: number;
+  stock?: number;
 }
 
 export class UpdateProductDto {

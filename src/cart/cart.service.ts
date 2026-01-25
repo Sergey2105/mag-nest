@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AddToCartDto, RemoveFromCartDto, SyncCartDto } from './cart.dto';
+import { AddToCartDto, RemoveFromCartDto, SyncCartDto } from './dto/cart.dto';
 import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
@@ -9,16 +9,25 @@ export class CartService {
   async addToCart(userId: string, addToCartDto: AddToCartDto) {
     const { productId, quantity } = addToCartDto;
 
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        isActive: true,
+        stock: true,
+      },
+    });
+
+    if (!product || !product.isActive || (product.stock ?? 0) <= 0) {
+      throw new Error('Товар недоступен');
+    }
+
     let cart = await this.prisma.cart.findFirst({
       where: { userId, status: 'ACTIVE' },
     });
 
     if (!cart) {
       cart = await this.prisma.cart.create({
-        data: {
-          userId,
-          status: 'ACTIVE',
-        },
+        data: { userId, status: 'ACTIVE' },
       });
     }
 
@@ -26,11 +35,13 @@ export class CartService {
       where: { cartId: cart.id, productId },
     });
 
+    const maxAllowed = product.stock ?? 0;
+
     if (existingCartItem) {
       await this.prisma.cartItem.update({
         where: { id: existingCartItem.id },
         data: {
-          quantity: existingCartItem.quantity + quantity,
+          quantity: Math.min(existingCartItem.quantity + quantity, maxAllowed),
         },
       });
     } else {
@@ -38,7 +49,7 @@ export class CartService {
         data: {
           cartId: cart.id,
           productId,
-          quantity,
+          quantity: Math.min(quantity, maxAllowed),
         },
       });
     }
@@ -47,29 +58,79 @@ export class CartService {
   }
 
   async getCart(userId: string) {
-    return this.prisma.cart.findFirst({
+    const cart = await this.prisma.cart.findFirst({
       where: { userId, status: 'ACTIVE' },
       include: {
-        items: { include: { product: true } },
+        items: {
+          include: {
+            product: true,
+          },
+        },
       },
     });
-  }
 
+    if (!cart) {
+      return { items: [] };
+    }
+
+    const updates = cart.items
+      .filter(
+        (item) =>
+          !item.product ||
+          !item.product.isActive ||
+          item.quantity > (item.product.stock ?? 0),
+      )
+      .map((item) =>
+        this.prisma.cartItem.update({
+          where: { id: item.id },
+          data: {
+            quantity: Math.min(item.quantity, item.product?.stock ?? 0),
+          },
+        }),
+      );
+
+    if (updates.length) {
+      await this.prisma.$transaction(updates);
+    }
+
+    return {
+      cartId: cart.id,
+      items: cart.items.map((item) => {
+        const stock = item.product?.stock ?? 0;
+        const isAvailable = item.product?.isActive && stock > 0;
+
+        return {
+          id: item.id,
+          quantity: item.quantity,
+          product: {
+            ...item.product,
+            stock,
+            isAvailable,
+          },
+        };
+      }),
+    };
+  }
   async incrementItem(userId: string, cartItemId: string) {
     const cartItem = await this.prisma.cartItem.findUnique({
       where: { id: cartItemId },
-      include: { cart: true },
+      include: { cart: true, product: true },
     });
 
     if (!cartItem || cartItem.cart.userId !== userId) {
-      throw new Error('Cart item not found or does not belong to user');
+      throw new Error('Cart item not found');
+    }
+
+    if (
+      !cartItem.product.isActive ||
+      cartItem.quantity >= (cartItem.product.stock ?? 0)
+    ) {
+      return this.getCart(userId);
     }
 
     await this.prisma.cartItem.update({
       where: { id: cartItemId },
-      data: {
-        quantity: cartItem.quantity + 1,
-      },
+      data: { quantity: cartItem.quantity + 1 },
     });
 
     return this.getCart(userId);
@@ -123,8 +184,6 @@ export class CartService {
   }
 
   async syncCart(userId: string, syncDto: SyncCartDto) {
-    const { items } = syncDto;
-
     let cart = await this.prisma.cart.findFirst({
       where: { userId, status: 'ACTIVE' },
     });
@@ -135,35 +194,36 @@ export class CartService {
       });
     }
 
-    for (const item of items) {
-      const productExists = await this.prisma.product.findUnique({
+    for (const item of syncDto.items) {
+      const product = await this.prisma.product.findUnique({
         where: { id: item.product.id },
+        select: {
+          isActive: true,
+          stock: true,
+        },
       });
 
-      if (!productExists) {
-        console.warn(
-          `Product with ID ${item.product.id} not found, skipping...`,
-        );
+      if (!product || !product.isActive || (product.stock ?? 0) <= 0) {
         continue;
       }
 
-      const existingCartItem = await this.prisma.cartItem.findFirst({
+      const existing = await this.prisma.cartItem.findFirst({
         where: { cartId: cart.id, productId: item.product.id },
       });
 
-      if (existingCartItem) {
+      const quantity = Math.min(item.quantity, product.stock ?? 0);
+
+      if (existing) {
         await this.prisma.cartItem.update({
-          where: { id: existingCartItem.id },
-          data: {
-            quantity: existingCartItem.quantity + item.quantity,
-          },
+          where: { id: existing.id },
+          data: { quantity },
         });
       } else {
         await this.prisma.cartItem.create({
           data: {
             cartId: cart.id,
             productId: item.product.id,
-            quantity: item.quantity,
+            quantity,
           },
         });
       }
@@ -179,15 +239,6 @@ export class CartService {
 
     const products = await this.prisma.product.findMany({
       where: { id: { in: productIds } },
-      select: {
-        id: true,
-        name: true,
-        price: true,
-        discountPrice: true,
-        images: true,
-        isActive: true,
-        stock: true,
-      },
     });
 
     const productMap = new Map(products.map((p) => [p.id, p]));
@@ -195,26 +246,26 @@ export class CartService {
     const items = dto.items.map((item) => {
       const product = productMap.get(item.productId);
 
-      // if (!product) {
-      //   return {
-      //     productId: item.productId,
-      //     // exists: false,
-      //     quantity: item.quantity,
-      //   };
-      // }
+      if (!product) {
+        return {
+          quantity: 0,
+          product: {
+            id: item.productId,
+            isAvailable: false,
+            stock: 0,
+          },
+        };
+      }
+
+      const stock = product.stock ?? 0;
+      const isAvailable = product.isActive && stock > 0;
 
       return {
-        // productId: product.id,
-        // exists: true,
-        quantity: item.quantity,
+        quantity: Math.min(item.quantity, stock),
         product: {
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          discountPrice: product.discountPrice,
-          images: product.images,
-          stock: product.stock ?? 0,
-          isActive: product.isActive,
+          ...product,
+          stock,
+          isAvailable,
         },
       };
     });

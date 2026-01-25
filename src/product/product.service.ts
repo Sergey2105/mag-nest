@@ -84,7 +84,11 @@ export class ProductService {
       throw new NotFoundException('Продукт не найден или недоступен');
     }
 
-    return product;
+    return {
+      ...product,
+      isAvailable: product.isActive && (product.stock ?? 0) > 0,
+      stock: product.stock ?? 0,
+    };
   }
 
   // // Для админки - продукт в любом статусе
@@ -287,14 +291,13 @@ export class ProductService {
     // --------------------------
     // Добавляем stock и актуальный isActive для фронта
     // --------------------------
-    const productsWithStock = products.map((p) => ({
+    const productsWithAvailability = products.map((p) => ({
       ...p,
-      // isActive = true только если товар активен и есть на складе
-      isActive: p.isActive && (p.stock ?? 0) > 0,
+      isAvailable: p.isActive && (p.stock ?? 0) > 0,
       stock: p.stock ?? 0,
     }));
 
-    return productsWithStock;
+    return productsWithAvailability;
   }
 
   // // Метод для админки - все продукты
@@ -745,10 +748,9 @@ export class ProductService {
     // --------------------------
     // Добавляем stock и актуальный isActive для фронта
     // --------------------------
-    const productsWithStock = products.map((p) => ({
+    const productsWithAvailability = products.map((p) => ({
       ...p,
-      // Считаем доступность: товар активен и есть на складе
-      isActive: p.isActive && (p.stock ?? 0) > 0,
+      isAvailable: p.isActive && (p.stock ?? 0) > 0,
       stock: p.stock ?? 0,
     }));
 
@@ -762,7 +764,7 @@ export class ProductService {
         slug: category.slug,
         images: category.images,
       },
-      products: productsWithStock,
+      products: productsWithAvailability,
       pagination: {
         total,
         page,

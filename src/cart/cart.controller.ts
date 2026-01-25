@@ -7,7 +7,7 @@ import {
   RemoveFromCartDto,
   SyncCartDto,
   UpdateCartItemDto,
-} from './cart.dto';
+} from './dto/cart.dto';
 import { CartService } from './cart.service';
 
 @Controller('cart')

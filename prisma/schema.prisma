@@ -89,7 +89,7 @@ model Product {
   description String
   categoryID  String
 
-  isActive    Boolean     @default(true)
+  isActive    Boolean     @default(true) // админская тема 
   stock Float @default(0)
 
   // isHasSecondDiscount Boolean @default(false) @map("is_has_second_discount")
